@@ -10,13 +10,24 @@ def parseFasta(fi):
             print('File format incorrect or file content does not correspond to fasta.')
     return sequences
 
+def parseFastq(fi):
+    sequences = []
+    with open(fi, "r") as fastq:
+        try:
+            for record in SeqIO.parse(fastq, "fastq"):
+                sequences.append(record)
+                if len(sequences) == 1000:
+                    break;
+        except:
+            print("File format incorrect or file content does not correspond to fastq.")
+    return sequences
+
 def find_kmers(seq, k):
-    sequence = seq.seq
     kmers = []
     i = 0
-    while i < len(sequence) - k:
-        if len(sequence[i:i+k]) == k: #and sequence[i:i+k] not in kmers:
-            kmers.append(sequence[i:i+k]) 
+    while i < len(seq) - k:
+        if len(seq[i:i+k]) == k: #and sequence[i:i+k] not in kmers:
+            kmers.append(seq[i:i+k]) 
         i += k
     return kmers
 
@@ -43,7 +54,7 @@ def dichotomicSearchFirst(kmer, sequence, suffix_array, k):
         mid = first + (last - first) // 2
         if sequence[suffix_array[mid]:suffix_array[mid]+k] == kmer and sequence[suffix_array[mid-1]:suffix_array[mid-1]+k] < kmer:
             return mid
-        elif sequence[suffix_array[mid]:suffix_array[mid]+k] < x:
+        elif sequence[suffix_array[mid]:suffix_array[mid]+k] < kmer:
             first = mid + 1
         else:
             last = mid - 1
@@ -56,7 +67,7 @@ def dichotomicSearchLast(kmer, sequence, suffix_array, k):
         mid = first + (last - first) // 2
         if sequence[suffix_array[mid]:suffix_array[mid]+k] == kmer and sequence[suffix_array[mid+1]:suffix_array[mid+1]+k] > kmer:
             return mid
-        elif sequence[suffix_array[mid]:suffix_array[mid]+k] < x:
+        elif sequence[suffix_array[mid]:suffix_array[mid]+k] < kmer:
             first = mid + 1
         else:
             last = mid - 1
