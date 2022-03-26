@@ -1,4 +1,5 @@
 from Bio import SeqIO
+import parasail
 
 def parseFasta(fi):
     sequences = []
@@ -15,6 +16,27 @@ def parseFastq(fi):
     with open(fi, "r") as fastq:
         try:
             for record in SeqIO.parse(fastq, "fastq"):
+                sequences.append(record)
+                if len(sequences) == 1000:
+                    break;
+        except:
+            print("File format incorrect or file content does not correspond to fastq.")
+    return sequences
+
+def parseFastq2(fi, suffix_array, k, ref):
+    sequences = []
+    with open(fi, "r") as fastq:
+        try:
+            for record in SeqIO.parse(fastq, "fastq"):
+                kmers = find_kmers(record.seq,k)
+                seeds = find_Seeds(kmers, ref, suffix_array, k)
+                if (len(seeds) > 0):
+                    alignment = parasail.sg_dx_trace_scan(str(record.seq), str(ref), 10, 1, parasail.dnafull)
+                    #print(alignment.score)
+                    #print(alignment.traceback.query+"\n"+alignment.traceback.comp+"\n"+alignment.traceback.ref)
+                    alignment.cigar.decode
+                    #alignment = parasail.sg_dx_trace_scan_sat(str(query.seq), str(sequences[0].seq), 10, 1, parasail.dnafull)
+                    #print(seeds)
                 sequences.append(record)
                 if len(sequences) == 1000:
                     break;
@@ -72,3 +94,17 @@ def dichotomicSearchLast(kmer, sequence, suffix_array, k):
         else:
             last = mid - 1
     return last
+
+
+def find_Seeds(kmers, sequence, suffix_array, k):
+    seeds = {}
+    for j in range(len(kmers)):
+        kmer = kmers[j]
+        first = dichotomicSearchFirst(kmer, sequence, suffix_array, k)
+        last = dichotomicSearchLast(kmer, sequence, suffix_array, k)
+        for i in range(first, last+1):
+            if(seeds.get(kmer, 0) != 0):    
+                seeds[kmer].append(suffix_array[i])
+            else:
+                seeds[kmer] = [suffix_array[i]]
+    return seeds
