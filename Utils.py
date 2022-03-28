@@ -1,5 +1,6 @@
 from ctypes import alignment
 from Bio import SeqIO
+import gzip
 import parasail, time
 
 def parseFasta(fi):
@@ -15,7 +16,7 @@ def parseFasta(fi):
 def parseFastq(fi, suffix_array, k, ref):
     cpt, seed = 0, 0
     records, alignements = [], []
-    with open(fi, "r") as fastq:
+    with gzip.open(fi, "rt") as fastq:
         try:
             for record in SeqIO.parse(fastq, "fastq"):
                 if str(record.seq[len(record.seq)//2:(len(record.seq)//2)+5]) != "NNNNN":
