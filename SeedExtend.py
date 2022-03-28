@@ -1,7 +1,7 @@
 import sys, argparse
 from Bio import SeqIO
 from Utils import *
-import parasail, time
+import time
 
 
 
@@ -15,23 +15,12 @@ def main():
     args = parser.parse_args(sys.argv[1:])
     start = time.time()
     sequences = parseFasta(args.genome)
-    #queries = parseFastq(args.reads)
     suffix_array = create_suffix_array(sequences[0].seq, int(args.kmersize))
-    queries = parseFastq2(args.reads, suffix_array, int(args.kmersize), sequences[0].seq)
-    """
-    for query in queries:
-        kmers = find_kmers(query.seq,int(args.kmersize))
-        seeds = find_Seeds(kmers, sequences[0].seq, suffix_array, int(args.kmersize))
-        if (len(seeds) > 0):
-            alignment = parasail.sg_dx_trace_scan(str(query.seq), str(sequences[0].seq), 10, 1, parasail.dnafull)
-            #print(alignment.score)
-            #print(alignment.traceback.query+"\n"+alignment.traceback.comp+"\n"+alignment.traceback.ref)
-            alignment.cigar.decode
-            #alignment = parasail.sg_dx_trace_scan_sat(str(query.seq), str(sequences[0].seq), 10, 1, parasail.dnafull)
-            #print(seeds)
-    """
+    recs, aligns = parseFastq(args.reads, suffix_array, int(args.kmersize), sequences[0].seq)
     end = time.time()
     print(end - start)
+    write_output(args.out, recs, aligns)
+    
 
 if __name__=="__main__":
     main()
