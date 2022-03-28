@@ -1,11 +1,10 @@
-from ctypes import alignment
 from Bio import SeqIO
 import gzip
 import parasail, time
 
 def parseFasta(fi):
     sequences = []
-    with open(fi, "r") as fasta:
+    with gzip.open(fi, "rt") as fasta:
         try:
             for record in SeqIO.parse(fasta, "fasta"):
                 sequences.append(record)
