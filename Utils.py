@@ -1,6 +1,6 @@
 from Bio import SeqIO
 import gzip
-import parasail, time
+import parasail, time, types
 
 def parseFasta(fi):
     sequences = []
@@ -13,29 +13,32 @@ def parseFasta(fi):
     return sequences
 
 def parseFastq(fi, suffix_array, k, ref):
-    cpt, seed = 0, 0
-    records, alignements = [], []
+    cpt, max_score = 0, 0
+    res = {}
     with gzip.open(fi, "rt") as fastq:
-        try:
-            for record in SeqIO.parse(fastq, "fastq"):
-                if str(record.seq[len(record.seq)//2:(len(record.seq)//2)+5]) != "NNNNN":
-                    kmers = find_filtered_kmers(record.seq,k)
-                    seeds = find_Seeds(kmers, ref, suffix_array, k)
-                    if (len(seeds) > 0):
-                        #cpt += 1
-                        alignment = parasail.sg_dx_trace_scan(str(record.seq), str(ref), 10, 1, parasail.dnafull)
+        for record in SeqIO.parse(fastq, "fastq"):
+            if str(record.seq[len(record.seq)//2:(len(record.seq)//2)+5]) != "NNNNN":
+                kmers = find_filtered_kmers(record.seq,k)
+                seeds = find_Seeds(kmers, ref, suffix_array, k)
+                for seed in seeds.values():
+                    cpt += 1
+                    for elem in seed:
+                        end_pos = min(elem+k+(len(record.seq)//2), len(ref))
+                        start_pos = max(elem-(len(record.seq)//2), 0)
+                        alignment = parasail.sg_dx_trace_scan(str(record.seq), str(ref[start_pos:end_pos]), 10, 1, parasail.dnafull)
                         #print(alignment.similar)
                         #print(alignment.traceback.query+"\n"+alignment.traceback.comp+"\n"+alignment.traceback.ref)
                         #alignment = parasail.sg_dx_trace_scan_sat(str(record.seq), str(ref), 10, 1, parasail.dnafull)
-                        score = alignment.score
-                        if score >= 150:
-                            records.append(record)
-                            alignements.append(alignment)
-                    #if cpt == 1000:
-                        #break
-        except:
-            print("File format incorrect or an error occured during seeding.")
-    return (records, alignements)
+                        
+                        if alignment.score >= 150 and alignment.score >= max_score:
+                            max_score = alignment.score
+                            max_alignment = alignment
+                if max_score >= 150:
+                    res[record.name] = [max_alignment, record.seq]
+                    max_score = 0
+                if cpt == 1000:
+                    break
+    return res
 
 def find_kmers(seq, k):
     kmers = []
@@ -108,16 +111,16 @@ def find_Seeds(kmers, sequence, suffix_array, k):
     
     return seeds
 
-def write_output(filename, recs, aligns):
+def write_output(filename, res):
     with open(filename, 'w') as f:
-        for i in range(len(recs)):
-            cigar = aligns[i].cigar.decode
-            name = recs[i].name
+        for key in res.keys():
+            cigar = res[key][0].cigar.decode
+            name = key
             for i in range(len(cigar)):
                 if cigar[i] == "D":
                     start_pos = cigar[0:i]
                     break
-            score = aligns[i].score
-            seq = recs[i].seq
+            score = res[key][0].score
+            seq = res[key][1]
             print(name, start_pos, score, seq, cigar, sep='\t', file=f)
     

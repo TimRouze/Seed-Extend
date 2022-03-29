@@ -16,10 +16,20 @@ def main():
     start = time.time()
     sequences = parseFasta(args.genome)
     suffix_array = create_suffix_array(sequences[0].seq, int(args.kmersize))
-    recs, aligns = parseFastq(args.reads, suffix_array, int(args.kmersize), sequences[0].seq)
-    end = time.time()
-    print(end - start)
-    write_output(args.out, recs, aligns)
+    try:
+        res = parseFastq(args.reads, suffix_array, int(args.kmersize), sequences[0].seq)
+        end = time.time()
+        print(end - start)
+
+        write_output(args.out, res)
+    except Exception as e:
+        with open("res_log.txt", "w") as err_file:
+            if hasattr(e, 'message'):
+                print(e.message, file = err_file)
+            elif hasattr(e, 'strerror'):
+                print(e.strerror, file = err_file)
+            else:
+                print(e, file = err_file)
     
 
 if __name__=="__main__":
