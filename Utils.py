@@ -38,7 +38,7 @@ def parseFastq(fi, suffix_array, k, ref):
                     res[record.name] = [max_alignment, record.seq, pos]
                     max_score, pos = 0, 0
                 #if cpt == 1000:
-                    #break
+                 #   break
     return res
 
 def find_kmers(seq, k):
@@ -50,9 +50,9 @@ def find_kmers(seq, k):
 def find_filtered_kmers(seq, k):
     kmers = []
     i = 0
-    #rc = reverseComplement(seq)
+    rc = reverseComplement(seq)
     while i <= len(seq) - k+1:
-        #kmers.append(rc[i:i+k])
+        kmers.append(rc[i:i+k])
         kmers.append(seq[i:i+k])
         i += 5
     return kmers
