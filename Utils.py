@@ -1,6 +1,6 @@
 from Bio import SeqIO
 import gzip
-import parasail, time, types
+import parasail, time
 
 def parseFasta(fi):
     sequences = []
@@ -13,7 +13,7 @@ def parseFasta(fi):
     return sequences
 
 def parseFastq(fi, suffix_array, k, ref):
-    cpt, max_score = 0, 0
+    cpt, max_score, pos = 0, 0, 0
     res = {}
     with gzip.open(fi, "rt") as fastq:
         for record in SeqIO.parse(fastq, "fastq"):
@@ -21,7 +21,7 @@ def parseFastq(fi, suffix_array, k, ref):
                 kmers = find_filtered_kmers(record.seq,k)
                 seeds = find_Seeds(kmers, ref, suffix_array, k)
                 for seed in seeds.values():
-                    cpt += 1
+                    #cpt += 1
                     for elem in seed:
                         end_pos = min(elem+k+(len(record.seq)//2), len(ref))
                         start_pos = max(elem-(len(record.seq)//2), 0)
@@ -32,12 +32,13 @@ def parseFastq(fi, suffix_array, k, ref):
                         
                         if alignment.score >= 150 and alignment.score >= max_score:
                             max_score = alignment.score
+                            pos = elem
                             max_alignment = alignment
                 if max_score >= 150:
-                    res[record.name] = [max_alignment, record.seq]
-                    max_score = 0
-                if cpt == 1000:
-                    break
+                    res[record.name] = [max_alignment, record.seq, pos]
+                    max_score, pos = 0, 0
+                #if cpt == 1000:
+                    #break
     return res
 
 def find_kmers(seq, k):
@@ -49,7 +50,9 @@ def find_kmers(seq, k):
 def find_filtered_kmers(seq, k):
     kmers = []
     i = 0
+    #rc = reverseComplement(seq)
     while i <= len(seq) - k+1:
+        #kmers.append(rc[i:i+k])
         kmers.append(seq[i:i+k])
         i += 5
     return kmers
@@ -87,9 +90,10 @@ def dichotomicSearch(kmer, sequence, suffix_array, k):
     last = len(suffix_array)-1
     while start <= last:
         mid = start + (last - start) // 2
-        """if sequence[suffix_array[mid]:suffix_array[mid]+k] == kmer and mid == len(suffix_array) -1:
-            return mid"""
-        if sequence[suffix_array[mid]:suffix_array[mid]+k] == kmer and sequence[suffix_array[mid+1]:suffix_array[mid+1]+k] > kmer:
+        if sequence[suffix_array[mid]:suffix_array[mid]+k] == kmer and mid == len(suffix_array) -1:
+            last = mid
+            break
+        elif sequence[suffix_array[mid]:suffix_array[mid]+k] == kmer and sequence[suffix_array[mid+1]:suffix_array[mid+1]+k] > kmer:
             last = mid
             break
         elif sequence[suffix_array[mid]:suffix_array[mid]+k] < kmer:
@@ -116,10 +120,7 @@ def write_output(filename, res):
         for key in res.keys():
             cigar = res[key][0].cigar.decode
             name = key
-            for i in range(len(cigar)):
-                if cigar[i] == "D":
-                    start_pos = cigar[0:i]
-                    break
+            start_pos = res[key][2]
             score = res[key][0].score
             seq = res[key][1]
             print(name, start_pos, score, seq, cigar, sep='\t', file=f)
