@@ -1,45 +1,54 @@
 from Bio import SeqIO
 import gzip
-import parasail, time
+import parasail, time, sys, psutil
 
 def parseFasta(fi):
-    sequences = []
+    sequence = ""
     with gzip.open(fi, "rt") as fasta:
         try:
             for record in SeqIO.parse(fasta, "fasta"):
-                sequences.append(record)
+                sequence += record.seq
         except:
             print('File format incorrect or file content does not correspond to fasta.')
-    return sequences
+    return sequence
 
-def parseFastq(fi, suffix_array, k, ref):
-    cpt, max_score, pos = 0, 0, 0
+def parseFastq(files, suffix_array, k, ref):
+    cpt, cpt_extended, max_score, pos = 0, 0, 0, 0
     res = {}
-    with gzip.open(fi, "rt") as fastq:
-        for record in SeqIO.parse(fastq, "fastq"):
-            if str(record.seq[len(record.seq)//2:(len(record.seq)//2)+5]) != "NNNNN":
-                kmers = find_filtered_kmers(record.seq,k)
-                seeds = find_Seeds(kmers, ref, suffix_array, k)
-                for seed in seeds.values():
-                    #cpt += 1
-                    for elem in seed:
-                        end_pos = min(elem+k+(len(record.seq)//2), len(ref))
-                        start_pos = max(elem-(len(record.seq)//2), 0)
-                        alignment = parasail.sg_dx_trace_scan(str(record.seq), str(ref[start_pos:end_pos]), 10, 1, parasail.dnafull)
-                        #print(alignment.similar)
-                        #print(alignment.traceback.query+"\n"+alignment.traceback.comp+"\n"+alignment.traceback.ref)
-                        #alignment = parasail.sg_dx_trace_scan_sat(str(record.seq), str(ref), 10, 1, parasail.dnafull)
-                        
-                        if alignment.score >= 150 and alignment.score >= max_score:
-                            max_score = alignment.score
-                            pos = elem
-                            max_alignment = alignment
-                if max_score >= 150:
-                    res[record.name] = [max_alignment, record.seq, pos]
-                    max_score, pos = 0, 0
-                #if cpt == 1000:
-                 #   break
-    return res
+    start = time.time()
+    for fi in files:
+        with gzip.open(fi, "rt") as fastq:
+            for record in SeqIO.parse(fastq, "fastq"):
+                if record.seq.count('N') <= len(record.seq)/2:
+                    kmers = find_filtered_kmers(record.seq,k)
+                    seeds = find_Seeds(kmers, ref, suffix_array, k)
+                    for seed in seeds.values():
+                        cpt_extended += 1
+                        for elem in seed:
+                            end_pos = min(elem+k+(len(record.seq)), len(ref))
+                            start_pos = max(elem-(len(record.seq)), 0)
+                            alignment = parasail.sg_dx_trace_scan(str(record.seq), str(ref[start_pos:end_pos]), 10, 1, parasail.dnafull)
+                            #print(alignment.similar)
+                            #print(alignment.traceback.query+"\n"+alignment.traceback.comp+"\n"+alignment.traceback.ref)
+                            #alignment = parasail.sg_dx_trace_scan_sat(str(record.seq), str(ref), 10, 1, parasail.dnafull)
+                            
+                            if alignment.score >= 150 and alignment.score >= max_score:
+                                max_score = alignment.score
+                                pos = elem
+                                max_alignment = alignment
+                    if max_score >= 150:
+                        res[record.name] = [max_alignment, record.seq, pos]
+                        max_score, pos = 0, 0
+                if cpt%1000 == 0:
+                    curr = time.time() - start
+                    sys.stdout.write(f"\r{((cpt/28282964)*100):.2f}% of total reads have been treated. computation time is {curr:.2f}secs")
+                    sys.stdout.flush()
+                    cpt = 0
+                cpt += 1
+                    
+    memory = psutil.Process().memory_info().rss / (1024 * 1024)
+    aux = [memory, cpt_extended]
+    return (res, aux)
 
 def find_kmers(seq, k):
     kmers = []
@@ -54,7 +63,7 @@ def find_filtered_kmers(seq, k):
     while i <= len(seq) - k+1:
         kmers.append(rc[i:i+k])
         kmers.append(seq[i:i+k])
-        i += 5
+        i += k
     return kmers
 
 def reverseComplement(seq):
@@ -115,8 +124,9 @@ def find_Seeds(kmers, sequence, suffix_array, k):
     
     return seeds
 
-def write_output(filename, res):
+def write_output(filename, res, exec_time, aux):
     with open(filename, 'w') as f:
+        print(f"Total execution time: {exec_time}, {aux[1]} reads where aligned and {aux[0]}Mb of memory was used", file = f)
         for key in res.keys():
             cigar = res[key][0].cigar.decode
             name = key
