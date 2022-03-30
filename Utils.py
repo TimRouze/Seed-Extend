@@ -118,15 +118,13 @@ def find_Seeds(kmers, sequence, suffix_array, k):
     
     return seeds
 
-def write_output(filename, res):
+def write_output(filename, res, exec_time):
     with open(filename, 'w') as f:
+        print(f"Total execution time: {exec_time}", file = f)
         for key in res.keys():
             cigar = res[key][0].cigar.decode
             name = key
-            for i in range(len(cigar)):
-                if cigar[i] == "D":
-                    start_pos = cigar[0:i]
-                    break
+            start_pos = res[key][2]
             score = res[key][0].score
             seq = res[key][1]
             print(name, start_pos, score, seq, cigar, sep='\t', file=f)
