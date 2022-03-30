@@ -16,13 +16,13 @@ def main():
     start = time.time()
     sequence = parseFasta(args.genome)
     suffix_array = create_suffix_array(sequence, int(args.kmersize))
-    #try:
-    res, aux = parseFastq(args.reads, suffix_array, int(args.kmersize), sequence)
-    end = time.time()
+    try:
+        res, aux = parseFastq(args.reads, suffix_array, int(args.kmersize), sequence)
+        end = time.time()
 
-    write_output(args.out, res, (end-start), aux)
-    print(f"\nExecution complete, please find the results in the {args.out} file.")
-    """except Exception as e:
+        write_output(args.out, res, (end-start), aux)
+        print(f"\nExecution complete, please find the results in the {args.out} file.")
+    except Exception as e:
         with open("res_log.txt", "w") as err_file:
             print(e, file = err_file)
             if hasattr(e, 'message'):
@@ -30,7 +30,7 @@ def main():
             elif hasattr(e, 'strerror'):
                 print(e.strerror, file = err_file)
             else:
-                print(e, file = err_file)"""
+                print(e, file = err_file)
     
 
 if __name__=="__main__":

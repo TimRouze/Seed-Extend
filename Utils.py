@@ -43,7 +43,6 @@ def parseFastq(files, suffix_array, k, ref):
                     curr = time.time() - start
                     sys.stdout.write(f"\r{((cpt/28282964)*100):.2f}% of total reads have been treated. computation time is {curr:.2f}secs")
                     sys.stdout.flush()
-                    cpt = 0
                 cpt += 1
                     
     memory = psutil.Process().memory_info().rss / (1024 * 1024)
