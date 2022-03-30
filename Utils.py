@@ -1,10 +1,13 @@
 from Bio import SeqIO
-import gzip
-import parasail, time, types
+from mimetypes import guess_type
+from functools import partial
+import parasail, time, types, gzip
 
 def parseFasta(fi):
     sequences = []
-    with gzip.open(fi, "rt") as fasta:
+    encoding = guess_type(fi)[1]
+    _open = partial(gzip.open, mode='rt') if encoding == 'gzip' else open
+    with _open(fi) as fasta:
         try:
             for record in SeqIO.parse(fasta, "fasta"):
                 sequences.append(record)
@@ -13,15 +16,16 @@ def parseFasta(fi):
     return sequences
 
 def parseFastq(fi, suffix_array, k, ref):
-    cpt, max_score = 0, 0
+    cmax_score = 0
     res = {}
-    with gzip.open(fi, "rt") as fastq:
+    encoding = guess_type(fi)[1]
+    _open = partial(gzip.open, mode='rt') if encoding == 'gzip' else open
+    with _open(fi) as fastq:
         for record in SeqIO.parse(fastq, "fastq"):
-            if str(record.seq[len(record.seq)//2:(len(record.seq)//2)+5]) != "NNNNN":
+            if str(record.seq[len(record.seq)//2:(len(record.seq)//2)+5]) != "NNNNN": 
                 kmers = find_filtered_kmers(record.seq,k)
                 seeds = find_Seeds(kmers, ref, suffix_array, k)
                 for seed in seeds.values():
-                    cpt += 1
                     for elem in seed:
                         end_pos = min(elem+k+(len(record.seq)//2), len(ref))
                         start_pos = max(elem-(len(record.seq)//2), 0)
@@ -36,20 +40,22 @@ def parseFastq(fi, suffix_array, k, ref):
                 if max_score >= 150:
                     res[record.name] = [max_alignment, record.seq]
                     max_score = 0
-                if cpt == 1000:
-                    break
     return res
 
 def find_kmers(seq, k):
     kmers = []
+    rc = reverseComplement(seq)
     for i in range(len(seq) - k+1):
+        kmers.append(rc[i:i+k])
         kmers.append(seq[i:i+k])
     return kmers
 
 def find_filtered_kmers(seq, k):
     kmers = []
     i = 0
+    rc = reverseComplement(seq)
     while i <= len(seq) - k+1:
+        kmers.append(rc[i:i+k])
         kmers.append(seq[i:i+k])
         i += 5
     return kmers
@@ -87,9 +93,10 @@ def dichotomicSearch(kmer, sequence, suffix_array, k):
     last = len(suffix_array)-1
     while start <= last:
         mid = start + (last - start) // 2
-        """if sequence[suffix_array[mid]:suffix_array[mid]+k] == kmer and mid == len(suffix_array) -1:
-            return mid"""
-        if sequence[suffix_array[mid]:suffix_array[mid]+k] == kmer and sequence[suffix_array[mid+1]:suffix_array[mid+1]+k] > kmer:
+        if sequence[suffix_array[mid]:suffix_array[mid]+k] == kmer and mid == len(suffix_array) -1:
+            last = mid
+            break
+        elif sequence[suffix_array[mid]:suffix_array[mid]+k] == kmer and sequence[suffix_array[mid+1]:suffix_array[mid+1]+k] > kmer:
             last = mid
             break
         elif sequence[suffix_array[mid]:suffix_array[mid]+k] < kmer:
