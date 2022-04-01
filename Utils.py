@@ -12,7 +12,7 @@ def parseFasta(fi):
             print('File format incorrect or file content does not correspond to fasta.')
     return sequence
 
-def parseFastq(files, suffix_array, k, ref):
+def seed_extend(files, suffix_array, k, ref):
     cpt, cpt_extended, max_score, pos = 0, 0, 0, 0
     res = {}
     start = time.time()
@@ -20,14 +20,17 @@ def parseFastq(files, suffix_array, k, ref):
         with gzip.open(fi, "rt") as fastq:
             for record in SeqIO.parse(fastq, "fastq"):
                 if record.seq.count('N') <= len(record.seq)/2:
-                    kmers = find_filtered_kmers(record.seq,k)
-                    seeds = find_Seeds(kmers, ref, suffix_array, k)
-                    for seed in seeds.values():
-                        cpt_extended += 1
-                        for elem in seed:
-                            end_pos = min(elem+k+(len(record.seq)), len(ref))
-                            start_pos = max(elem-(len(record.seq)), 0)
-                            alignment = parasail.sg_dx_trace_scan(str(record.seq), str(ref[start_pos:end_pos]), 10, 1, parasail.dnafull)
+                    seeds = find_Seeds(record.seq, suffix_array, k)
+                    for key in seeds.keys():
+                        if key == "rc":
+                            record_seq = record.reverse_complement().seq
+                        else:
+                            record_seq = record.seq
+                        for elem in seeds[key]:
+                            cpt_extended +=1
+                            end_pos = min(elem+k+(len(record_seq)), len(ref))
+                            start_pos = max(elem-(len(record_seq)), 0)
+                            alignment = parasail.sg_dx_trace_scan(str(record_seq), str(ref[start_pos:end_pos]), 10, 1, parasail.dnafull)
                             #print(alignment.similar)
                             #print(alignment.traceback.query+"\n"+alignment.traceback.comp+"\n"+alignment.traceback.ref)
                             #alignment = parasail.sg_dx_trace_scan_sat(str(record.seq), str(ref), 10, 1, parasail.dnafull)
@@ -48,6 +51,38 @@ def parseFastq(files, suffix_array, k, ref):
     memory = psutil.Process().memory_info().rss / (1024 * 1024)
     aux = [memory, cpt_extended]
     return (res, aux)
+
+def keep_matching_reads(files, suffix_array, k, ref):
+    cpt, cpt_extended, max_score, pos = 0, 0, 0, 0
+    res = []
+    start = time.time()
+    for fi in files:
+        with gzip.open(fi, "rt") as fastq:
+            for record in SeqIO.parse(fastq, "fastq"):
+                if record.seq.count('N') <= len(record.seq)/2:
+                    kmers = find_filtered_kmers(record.seq,k)
+                    seeds = find_Seeds(kmers, ref, suffix_array, k)
+                    for seed in seeds.values():
+                        cpt_extended += 1
+                        for elem in seed:
+                            end_pos = min(elem+k+(len(record.seq)), len(ref))
+                            start_pos = max(elem-(len(record.seq)), 0)
+                            alignment = parasail.sg_dx_trace_scan(str(record.seq), str(ref[start_pos:end_pos]), 10, 1, parasail.dnafull)
+                            #print(alignment.similar)
+                            #print(alignment.traceback.query+"\n"+alignment.traceback.comp+"\n"+alignment.traceback.ref)
+                            #alignment = parasail.sg_dx_trace_scan_sat(str(record.seq), str(ref), 10, 1, parasail.dnafull)
+                            
+                            if alignment.score >= 150 and alignment.score >= max_score:
+                                max_score = alignment.score
+                    if max_score >= 285:
+                        res.append(record)
+                        max_score = 0
+                if cpt%1000 == 0:
+                    curr = time.time() - start
+                    sys.stdout.write(f"\r{((cpt/28282964)*100):.2f}% of total reads have been treated. computation time is {curr:.2f}secs")
+                    sys.stdout.flush()
+                cpt += 1
+    return res
 
 def find_kmers(seq, k):
     kmers = []
@@ -110,17 +145,26 @@ def dichotomicSearch(kmer, sequence, suffix_array, k):
             last = mid -1
     return (first, last)
 
-def find_Seeds(kmers, sequence, suffix_array, k):
+def find_Seeds(seq, suffix_array, k):
     seeds = {}
-    for j in range(len(kmers)):
-        kmer = kmers[j]
-        first, last = dichotomicSearch(kmer, sequence, suffix_array, k)
+    i = 0
+    rc = reverseComplement(seq)
+    while i <= len(seq) - k+1:
+        kmer_rc = rc[i:i+k]
+        kmer = seq[i:i+k]
+        i += k
+        first, last = dichotomicSearch(kmer, seq, suffix_array, k)
+        first_rc, last_rc = dichotomicSearch(kmer_rc, seq, suffix_array, k)
         for i in range(first, last+1):
             if(seeds.get(kmer, 0) != 0):    
-                seeds[kmer].append(suffix_array[i])
+                seeds["normal"].append(suffix_array[i])
             else:
-                seeds[kmer] = [suffix_array[i]]
-    
+                seeds["normal"] = [suffix_array[i]]
+        for i in range(first_rc, last_rc+1):
+            if(seeds.get(kmer_rc, 0) != 0):    
+                seeds["rc"].append(suffix_array[i])
+            else:
+                seeds["rc"] = [suffix_array[i]]
     return seeds
 
 def write_output(filename, res, exec_time, aux):

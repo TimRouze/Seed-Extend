@@ -17,7 +17,7 @@ def main():
     sequence = parseFasta(args.genome)
     suffix_array = create_suffix_array(sequence, int(args.kmersize))
     try:
-        res, aux = parseFastq(args.reads, suffix_array, int(args.kmersize), sequence)
+        res, aux = seed_extend(args.reads, suffix_array, int(args.kmersize), sequence)
         end = time.time()
 
         write_output(args.out, res, (end-start), aux)
