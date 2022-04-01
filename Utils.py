@@ -83,12 +83,13 @@ def find_Seeds(seq, suffix_array, k, gap, read):
     rc = reverseComplement(read)
     while i <= len(read) - k+1:
         kmer_rc = rc[i:i+k]
-        kmer = seq[i:i+k]
+        kmer = read[i:i+k]
         i += gap
         first, last = dichotomicSearch(kmer, seq, suffix_array, k)
         first_rc, last_rc = dichotomicSearch(kmer_rc, seq, suffix_array, k)
         for i in range(first, last+1):
-            if(seeds.get(kmer, 0) != 0):    
+            if(seeds.get(kmer, 0) != 0):
+                print(first, last)
                 seeds["normal"].append(suffix_array[i])
             else:
                 seeds["normal"] = [suffix_array[i]]

@@ -37,7 +37,7 @@ def seed_extend(files, suffix_array, k, ref, gap):
                     if max_score >= 150:
                         res[record.name] = [max_alignment, record.seq, pos]
                         max_score, pos = 0, 0
-                if cpt%10000 == 0:
+                if cpt%1000 == 0:
                     curr = time.time() - start
                     sys.stdout.write(f"\r{((cpt/28282964)*100):.2f}% of total reads have been treated. computation time is {curr:.2f}secs")
                     sys.stdout.flush()
