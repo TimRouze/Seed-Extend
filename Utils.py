@@ -1,88 +1,19 @@
 from Bio import SeqIO
+from mimetypes import guess_type
+from functools import partial
 import gzip
-import parasail, time, sys, psutil
 
 def parseFasta(fi):
     sequence = ""
-    with gzip.open(fi, "rt") as fasta:
+    encoding = guess_type(fi)[1]
+    _open = partial(gzip.open, mode='rt') if encoding == 'gzip' else open
+    with _open(fi) as fasta:
         try:
             for record in SeqIO.parse(fasta, "fasta"):
                 sequence += record.seq
         except:
             print('File format incorrect or file content does not correspond to fasta.')
     return sequence
-
-def seed_extend(files, suffix_array, k, ref):
-    cpt, cpt_extended, max_score, pos = 0, 0, 0, 0
-    res = {}
-    start = time.time()
-    for fi in files:
-        with gzip.open(fi, "rt") as fastq:
-            for record in SeqIO.parse(fastq, "fastq"):
-                if record.seq.count('N') <= len(record.seq)/2:
-                    seeds = find_Seeds(record.seq, suffix_array, k)
-                    for key in seeds.keys():
-                        if key == "rc":
-                            record_seq = record.reverse_complement().seq
-                        else:
-                            record_seq = record.seq
-                        for elem in seeds[key]:
-                            cpt_extended +=1
-                            end_pos = min(elem+k+(len(record_seq)), len(ref))
-                            start_pos = max(elem-(len(record_seq)), 0)
-                            alignment = parasail.sg_dx_trace_scan(str(record_seq), str(ref[start_pos:end_pos]), 10, 1, parasail.dnafull)
-                            #print(alignment.similar)
-                            #print(alignment.traceback.query+"\n"+alignment.traceback.comp+"\n"+alignment.traceback.ref)
-                            #alignment = parasail.sg_dx_trace_scan_sat(str(record.seq), str(ref), 10, 1, parasail.dnafull)
-                            
-                            if alignment.score >= 150 and alignment.score >= max_score:
-                                max_score = alignment.score
-                                pos = elem
-                                max_alignment = alignment
-                    if max_score >= 150:
-                        res[record.name] = [max_alignment, record.seq, pos]
-                        max_score, pos = 0, 0
-                if cpt%1000 == 0:
-                    curr = time.time() - start
-                    sys.stdout.write(f"\r{((cpt/28282964)*100):.2f}% of total reads have been treated. computation time is {curr:.2f}secs")
-                    sys.stdout.flush()
-                cpt += 1
-                    
-    memory = psutil.Process().memory_info().rss / (1024 * 1024)
-    aux = [memory, cpt_extended]
-    return (res, aux)
-
-def keep_matching_reads(files, suffix_array, k, ref):
-    cpt, cpt_extended, max_score, pos = 0, 0, 0, 0
-    res = []
-    start = time.time()
-    for fi in files:
-        with gzip.open(fi, "rt") as fastq:
-            for record in SeqIO.parse(fastq, "fastq"):
-                if record.seq.count('N') <= len(record.seq)/2:
-                    kmers = find_filtered_kmers(record.seq,k)
-                    seeds = find_Seeds(kmers, ref, suffix_array, k)
-                    for seed in seeds.values():
-                        cpt_extended += 1
-                        for elem in seed:
-                            end_pos = min(elem+k+(len(record.seq)), len(ref))
-                            start_pos = max(elem-(len(record.seq)), 0)
-                            alignment = parasail.sg_dx_trace_scan(str(record.seq), str(ref[start_pos:end_pos]), 10, 1, parasail.dnafull)
-                            #print(alignment.similar)
-                            #print(alignment.traceback.query+"\n"+alignment.traceback.comp+"\n"+alignment.traceback.ref)
-                            #alignment = parasail.sg_dx_trace_scan_sat(str(record.seq), str(ref), 10, 1, parasail.dnafull)
-                            
-                            if alignment.score >= 150 and alignment.score >= max_score:
-                                max_score = alignment.score
-                    if max_score >= 285:
-                        res.append(record)
-                        max_score = 0
-                if cpt%1000 == 0:
-                    curr = time.time() - start
-                    sys.stdout.write(f"\r{((cpt/28282964)*100):.2f}% of total reads have been treated. computation time is {curr:.2f}secs")
-                    sys.stdout.flush()
-                cpt += 1
-    return res
 
 def find_kmers(seq, k):
     kmers = []
@@ -93,9 +24,9 @@ def find_kmers(seq, k):
 def find_filtered_kmers(seq, k):
     kmers = []
     i = 0
-    rc = reverseComplement(seq)
+    #rc = reverseComplement(seq)
     while i <= len(seq) - k+1:
-        kmers.append(rc[i:i+k])
+        #kmers.append(rc[i:i+k])
         kmers.append(seq[i:i+k])
         i += k
     return kmers
@@ -145,14 +76,15 @@ def dichotomicSearch(kmer, sequence, suffix_array, k):
             last = mid -1
     return (first, last)
 
-def find_Seeds(seq, suffix_array, k):
+def find_Seeds(seq, suffix_array, k, gap, read):
     seeds = {}
+    kmers, kmers_rc = [], []
     i = 0
-    rc = reverseComplement(seq)
-    while i <= len(seq) - k+1:
+    rc = reverseComplement(read)
+    while i <= len(read) - k+1:
         kmer_rc = rc[i:i+k]
         kmer = seq[i:i+k]
-        i += k
+        i += gap
         first, last = dichotomicSearch(kmer, seq, suffix_array, k)
         first_rc, last_rc = dichotomicSearch(kmer_rc, seq, suffix_array, k)
         for i in range(first, last+1):
@@ -169,12 +101,17 @@ def find_Seeds(seq, suffix_array, k):
 
 def write_output(filename, res, exec_time, aux):
     with open(filename, 'w') as f:
-        print(f"Total execution time: {exec_time}, {aux[1]} reads where aligned and {aux[0]}Mb of memory was used", file = f)
-        for key in res.keys():
-            cigar = res[key][0].cigar.decode
-            name = key
-            start_pos = res[key][2]
-            score = res[key][0].score
-            seq = res[key][1]
-            print(name, start_pos, score, seq, cigar, sep='\t', file=f)
+        if aux == []:
+            print(f"Total execution time: {exec_time}", file = f)
+            for elem in res:
+                print(elem.id, elem.name, elem.seq, sep='\t', file=f)
+        else:
+            print(f"Total execution time: {exec_time}, {aux[1]} reads where aligned and {aux[0]}Mb of memory was used", file = f)
+            for key in res.keys():
+                cigar = res[key][0].cigar.decode
+                name = key
+                start_pos = res[key][2]
+                score = res[key][0].score
+                seq = res[key][1]
+                print(name, start_pos, score, seq, cigar, sep='\t', file=f)
     
