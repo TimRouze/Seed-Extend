@@ -174,16 +174,16 @@ def find_Seeds(seq, suffix_array, k, gap, read):
         i += gap
         first, last = dichotomicSearch(kmer, seq, suffix_array, k)
         first_rc, last_rc = dichotomicSearch(kmer_rc, seq, suffix_array, k)
-        for i in range(first, last+1):
+        for j in range(first, last+1):
             if(seeds.get(kmer, 0) != 0):
-                seeds["+"].append(suffix_array[i])
+                seeds["+"].append(suffix_array[j])
             else:
-                seeds["+"] = [suffix_array[i]]
+                seeds["+"] = [suffix_array[j]]
         for i in range(first_rc, last_rc+1):
             if(seeds.get(kmer_rc, 0) != 0):    
-                seeds["-"].append(suffix_array[i])
+                seeds["-"].append(suffix_array[j])
             else:
-                seeds["-"] = [suffix_array[i]]
+                seeds["-"] = [suffix_array[j]]
     return seeds
 
 def write_output(filename, res, exec_time, aux):
