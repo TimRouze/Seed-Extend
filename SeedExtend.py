@@ -19,7 +19,7 @@ def seed_extend(files, suffix_array, k, ref, gap):
     ref : str
         Sequence of the reference sequence.
     gap : int
-        _description_
+        Gap between the first nucleotide of each consecutive kmer to be selected from tne read.
 
     Returns
     -------
@@ -70,6 +70,26 @@ def seed_extend(files, suffix_array, k, ref, gap):
     return (res, aux)
 
 def keep_matching_reads(files, suffix_array, k, ref, gap):
+    """_summary_
+
+    Parameters
+    ----------
+    files : list of str
+        A list of fasta files containing query sequences.
+    suffix_array : list of int
+        The suffix array of the reference sequence.
+    k : int
+        Word size of the kmers the alignment uses.
+    ref : str
+        Sequence of the reference sequence.
+    gap : int
+        Gap between the first nucleotide of each consecutive kmer to be selected from tne read.
+
+    Returns
+    -------
+    dict of {str : tuple of (int, str, int)}
+        _description_
+    """
     cpt = 0
     res = []
     start = time.time()

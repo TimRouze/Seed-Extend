@@ -155,7 +155,7 @@ def find_Seeds(seq, suffix_array, k, gap, read):
     k : int
         The word size used to match kmers with seeds.
     gap : int
-        _description_
+        Gap between the first nucleotide of each consecutive kmer to be selected from tne read.
     read : str
         The DNA sequence we take kmers from.
 
@@ -179,7 +179,7 @@ def find_Seeds(seq, suffix_array, k, gap, read):
                 seeds["+"].append(suffix_array[j])
             else:
                 seeds["+"] = [suffix_array[j]]
-        for i in range(first_rc, last_rc+1):
+        for j in range(first_rc, last_rc+1):
             if(seeds.get(kmer_rc, 0) != 0):    
                 seeds["-"].append(suffix_array[j])
             else:
