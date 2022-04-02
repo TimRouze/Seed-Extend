@@ -17,14 +17,14 @@ def seed_extend(files, suffix_array, k, ref, gap):
     k : int
         Word size of the kmers the alignment uses.
     ref : str
-        Sequence of the reference sequence.
+        Sequence of the reference genome.
     gap : int
         Gap between the first nucleotide of each consecutive kmer to be selected from tne read.
 
     Returns
     -------
     res : dict of {str : tuple of (int, str, int)}
-        _description_
+        A dictionary matching every read name with a tuple containing the optimal alignment score, the read's sequence and the approximate position position of the alignment reference.
     aux : tuple of (int, int)
         A tuple containing the memory used by the execution and the number of reads aligned.
     """
@@ -70,7 +70,7 @@ def seed_extend(files, suffix_array, k, ref, gap):
     return (res, aux)
 
 def keep_matching_reads(files, suffix_array, k, ref, gap):
-    """_summary_
+    """Return a list of reads with an alignment score >= to XXXX and thus considered to be part of the SARS-COV-2 genome.
 
     Parameters
     ----------
@@ -88,7 +88,7 @@ def keep_matching_reads(files, suffix_array, k, ref, gap):
     Returns
     -------
     dict of {str : tuple of (int, str, int)}
-        _description_
+        A dictionary matching every read name with a tuple containing the optimal alignment score, the read's sequence and the approximate position position of the alignment reference.
     """
     cpt = 0
     res = []
@@ -126,30 +126,30 @@ def keep_matching_reads(files, suffix_array, k, ref, gap):
                 cpt += 1
     return res
 
-
 def main():
     #Command line options
     parser = argparse.ArgumentParser(description = 'Seed and extend alignment tool.')
-    parser.add_argument('-g', '--genome', required=True, metavar='', help='Fasta file containing reference sequence')
-    parser.add_argument('-r', '--reads', required=True, metavar='', nargs= '+', help='Fasta file(s) containing query sequences')
-    parser.add_argument('-o', '--out', required=True, metavar='', help='Output file')
-    parser.add_argument('-k', '--kmersize', required=True, metavar='', help='Word size of the kmers the alignment should use')
-    parser.add_argument('-b', '--breaksize', required=False, metavar='', help='Gap between selected kmers (1 means no gap)', default=1)
-    parser.add_argument('-t', '--type', required=False, metavar='', choices=['S', 's', 'F', 'f'], help='Type of analysis to perform (S for seed-extend or F for filtering)', default='S')
+    parser.add_argument('genome', help='Fasta file containing reference sequence')
+    parser.add_argument('reads', nargs= '+', help='Fasta file(s) containing query sequences')
+    parser.add_argument('out', help='Output file')
+    parser.add_argument('k', type=int, help='Word size of the kmers the alignment should use')
+    parser.add_argument('gap', type=int, nargs='?', default=1, help='Gap between first nucleotides of consecutive kmers (1 by default)')
+    parser.add_argument('-s' , '--sample', action='store_true', help='Run the program on the first 1000 reads only')
+    parser.add_argument('-t', '--type', metavar='', choices=['S', 's', 'F', 'f'], help='Type of analysis to perform (S for seed-extend or F for filtering, S by default)', default='S')
     args = parser.parse_args(sys.argv[1:])
 
     start = time.time()
     sequence = parseFasta(args.genome)
-    suffix_array = create_suffix_array(sequence, int(args.kmersize))
+    suffix_array = create_suffix_array(sequence, args.k)
 
     if args.type == 'S' or args.type =='s':
         #Seed-extend algorithm
-        res, aux = seed_extend(args.reads, suffix_array, int(args.kmersize), sequence, int(args.breaksize))
+        res, aux = seed_extend(args.reads, suffix_array, args.k, sequence, args.gap)
         end = time.time()
         write_output(args.out, res, (end-start), aux)
     else:
         #filtering algorithm
-        res = keep_matching_reads(args.reads, suffix_array, int(args.kmersize), sequence, int(args.breaksize))
+        res = keep_matching_reads(args.reads, suffix_array, args.k, sequence, args.gap)
         end = time.time()
         write_output(args.out, res, (end-start), [])
         

@@ -194,7 +194,7 @@ def write_output(filename, res, exec_time, aux):
     filename : str
         Path of the output file results should be written in.
     res : dict of {str : tuple of (int, str, int)}
-        _description_
+        A dictionary matching every read name with a tuple containing the optimal alignment score, the read's sequence and the approximate position position of the alignment reference.
     exec_time : int
         Time the execution took.
     aux : tuple of (int, int)
