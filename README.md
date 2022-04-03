@@ -1,5 +1,6 @@
 # Seed-Extend
-Project consisting in comparing query sequences with reference genomes.
+Project consisting in comparing short reads from [SRR10971381](https://trace.ncbi.nlm.nih.gov/Traces/sra/?run=SRR10971381) with reference genomes (Flu, Rhinovirus, HIV and Alpha Coronavirus). The goal is to associate the reads with a genome to understand from which organism the reads are from.
+Part two of this project consists in comparing other short reads with [NC_045512.2](https://www.ncbi.nlm.nih.gov/nuccore/NC_045512.2) in order to filter the reads matching with the organism.
 ## Usage
 seedExtend.py [-h] [-s] [-t] genome reads [reads ...] out k [gap]  
 
