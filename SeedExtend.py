@@ -49,8 +49,9 @@ def seed_extend(files, suffix_array, k, ref, gap):
 
 def keep_matching_reads(files, suffix_array, k, ref, gap):
     cpt = 0
-    res = []
+    res, scores = [], []
     start = time.time()
+    is_break = False
     for fi in files:
         with gzip.open(fi, "rt") as fastq:
             for record in SeqIO.parse(fastq, "fastq"):
@@ -62,27 +63,26 @@ def keep_matching_reads(files, suffix_array, k, ref, gap):
                         else:
                             record_seq = record.seq
                         for elem in seeds[key]:
-                            cpt_extended +=1
                             end_pos = min(elem+k+(len(record_seq)), len(ref))
                             start_pos = max(elem-(len(record_seq)), 0)
                             alignment = parasail.sg_dx_trace_scan(str(record_seq), str(ref[start_pos:end_pos]), 10, 1, parasail.dnafull)
                             #print(alignment.similar)
                             #print(alignment.traceback.query+"\n"+alignment.traceback.comp+"\n"+alignment.traceback.ref)
                             #alignment = parasail.sg_dx_trace_scan_sat(str(record.seq), str(ref), 10, 1, parasail.dnafull)
-                            print(cpt)
-                            if alignment.score >= 285:
+                            if alignment.score >= 690:
+                                is_break = True
                                 res.append(record)
+                                scores.append(alignment.score)
                                 break
-                        else:
-                            continue
-                        break
-                if cpt%1000000 == 0:
+                        if is_break:
+                            is_break = False
+                            break
+                if cpt%100 == 0:
                     curr = time.time() - start
                     sys.stdout.write(f"\r{((cpt/1000000)*100):.2f}% of total reads have been treated. computation time is {curr:.2f}secs")
                     sys.stdout.flush()
-                    break
                 cpt += 1
-    return res
+    return res, scores
 
 
 def main():
@@ -104,9 +104,9 @@ def main():
         end = time.time()
         write_output(args.out, res, (end-start), aux)
     else:
-        res = keep_matching_reads(args.reads, suffix_array, int(args.kmersize), sequence, int(args.breaksize))
+        res, scores = keep_matching_reads(args.reads, suffix_array, int(args.kmersize), sequence, int(args.breaksize))
         end = time.time()
-        write_output(args.out, res, (end-start), [])
+        write_output(args.out, res, (end-start), scores)
         
 
         

@@ -87,25 +87,25 @@ def find_Seeds(seq, suffix_array, k, gap, read):
         i += gap
         first, last = dichotomicSearch(kmer, seq, suffix_array, k)
         first_rc, last_rc = dichotomicSearch(kmer_rc, seq, suffix_array, k)
-        for i in range(first, last+1):
+        for j in range(first, last+1):
             if(seeds.get(kmer, 0) != 0):
                 print(first, last)
-                seeds["normal"].append(suffix_array[i])
+                seeds["normal"].append(suffix_array[j])
             else:
-                seeds["normal"] = [suffix_array[i]]
-        for i in range(first_rc, last_rc+1):
+                seeds["normal"] = [suffix_array[j]]
+        for j in range(first_rc, last_rc+1):
             if(seeds.get(kmer_rc, 0) != 0):    
-                seeds["rc"].append(suffix_array[i])
+                seeds["rc"].append(suffix_array[j])
             else:
-                seeds["rc"] = [suffix_array[i]]
+                seeds["rc"] = [suffix_array[j]]
     return seeds
 
 def write_output(filename, res, exec_time, aux):
     with open(filename, 'w') as f:
-        if aux == []:
+        if len(aux) == len(res):
             print(f"Total execution time: {exec_time}", file = f)
-            for elem in res:
-                print(elem.id, elem.name, elem.seq, sep='\t', file=f)
+            for i in range(len(res)):
+                print(res[i].id, res[i].seq, aux[i], sep='\t', file=f)
         else:
             print(f"Total execution time: {exec_time}, {aux[1]} reads where aligned and {aux[0]}Mb of memory was used", file = f)
             for key in res.keys():
