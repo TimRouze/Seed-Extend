@@ -1,6 +1,7 @@
 from Bio import SeqIO
 from mimetypes import guess_type
 from functools import partial
+import parasail, time, types, gzip
 import gzip
 
 def parseFasta(fi):
