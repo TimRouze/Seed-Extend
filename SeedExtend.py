@@ -5,7 +5,7 @@ from mimetypes import guess_type
 from functools import partial
 import time, psutil, parasail, doctest
 
-def seed_extend(files, suffix_array, k, ref, gap):
+def seed_extend(files, suffix_array, k, ref, gap, sample):
     """Core function which runs the seed-extend algorithm.
 
     Parameters
@@ -59,6 +59,8 @@ def seed_extend(files, suffix_array, k, ref, gap):
                     if max_score >= 150:
                         res[record.name] = (max_alignment, record.seq, pos)
                         max_score, pos = 0, 0
+                        if sample: 
+                            break
                 if cpt%1000 == 0:
                     curr = time.time() - start
                     sys.stdout.write(f"\r{((cpt/28282964)*100):.2f}% of total reads have been treated. computation time is {curr:.2f}secs")
@@ -69,7 +71,7 @@ def seed_extend(files, suffix_array, k, ref, gap):
     aux = (memory, cpt_extended)
     return (res, aux)
 
-def keep_matching_reads(files, suffix_array, k, ref, gap):
+def keep_matching_reads(files, suffix_array, k, ref, gap, sample):
     """Return a list of reads with an alignment score >= to XXXX and thus considered to be part of the SARS-COV-2 genome.
 
     Parameters
@@ -130,11 +132,11 @@ def main():
     #Command line options
     parser = argparse.ArgumentParser(description = 'Seed and extend alignment tool.')
     parser.add_argument('genome', help='Fasta file containing reference sequence')
-    parser.add_argument('reads', nargs= '+', help='Fasta file(s) containing query sequences')
     parser.add_argument('out', help='Output file')
     parser.add_argument('k', type=int, help='Word size of the kmers the alignment should use')
-    parser.add_argument('gap', type=int, nargs='?', default=1, help='Gap between first nucleotides of consecutive kmers (1 by default)')
-    parser.add_argument('-s' , '--sample', action='store_true', help='Run the program on the first 1000 reads only')
+    parser.add_argument('reads', nargs= '+', help='Fasta file(s) containing query sequences')
+    parser.add_argument('-g', "--gap", default=1, metavar='', type=int, help='Gap between first nucleotides of consecutive kmers (1 by default)')parser.add_argument('gap', type=int, nargs='?', default=1, help='Gap between first nucleotides of consecutive kmers (1 by default)')
+    parser.add_argument('-s' , '--sample', action='store_true', help='Stop the program once 1 seed meets the score threshold')
     parser.add_argument('-t', '--type', metavar='', choices=['S', 's', 'F', 'f'], help='Type of analysis to perform (S for seed-extend or F for filtering, S by default)', default='S')
     args = parser.parse_args(sys.argv[1:])
 
@@ -144,17 +146,17 @@ def main():
 
     if args.type == 'S' or args.type =='s':
         #Seed-extend algorithm
-        res, aux = seed_extend(args.reads, suffix_array, args.k, sequence, args.gap)
+        res, aux = seed_extend(args.reads, suffix_array, args.k, sequence, args.gap, args.sample)
         end = time.time()
         write_output(args.out, res, (end-start), aux)
     else:
-        res, scores = keep_matching_reads(args.reads, suffix_array, int(args.kmersize), sequence, int(args.breaksize))
+        res, scores = keep_matching_reads(args.reads, suffix_array, args.k, sequence, args.gap, args.sample)
         end = time.time()
         write_output(args.out, res, (end-start), scores)
         
 
         
-        print(f"\nExecution complete, please find the results in the {args.out} file.")
+    print(f"\nExecution complete, please find the results in the {args.out} file.")
     """except Exception as e:
         with open("res_log.txt", "w") as err_file:
             print(e, file = err_file)"""
