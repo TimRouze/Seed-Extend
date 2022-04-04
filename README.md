@@ -12,9 +12,9 @@ SeedExtend.py [-h] [-g] [-s] [-t] genome out k reads [reads ...]
   
 ### optional arguments: 
 <font color="red">-h</font>  show this help message and exit  
-<font color="red">-s</font>  Stop the program once 1 seed meets the score threshold
+<font color="red">-s</font>  Stop the program once 1 seed meets the score threshold  
 <font color="red">-t</font>  Type of analysis to perform (S for seed-extend or F for filtering, S by default)  
 
 ### Examples:
-`./SeedExtend.py Data/GCF_000851145.1_ViralMultiSegProj14892_genomic.fna Data/SRR10971381_1.fastq.gz result_grippe.txt 31`  
-`./SeedExtend.py Data/GCF_000851145.1_ViralMultiSegProj14892_genomic.fna.gz Data/SRR10971381_1.fastq result_grippe.txt 15 15 -s`
+`./SeedExtend.py Data/GCF_000851145.1_ViralMultiSegProj14892_genomic.fna  result_grippe.txt 31 Data/SRR10971381_1.fastq.gz`  
+`./SeedExtend.py Data/GCF_000851145.1_ViralMultiSegProj14892_genomic.fna.gz  result_grippe.txt 15 15 Data/SRR10971381_1.fastq -s`
